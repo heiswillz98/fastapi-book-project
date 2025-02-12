@@ -17,36 +17,30 @@ jobs:
           echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
-        shell: bash
 
       - name: Deploy to EC2
         run: |
           ssh ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
-            set -e  # Exit immediately on error
+            set -e  # Exit on error
             
             # Define working directory
-            APP_DIR="/home/ubuntu"
+            APP_DIR="/home/ubuntu/app"
 
             # Clone repo if not exists, else pull latest changes
             if [ ! -d "$APP_DIR/.git" ]; then
-              git clone https://github.com/heiswillz98/fastapi-book-project.git $APP_DIR
+              git clone https://github.com/heiswillz/fastapi-book-project.git $APP_DIR
             fi
             cd $APP_DIR
             git pull origin main
 
-            # Stop and remove old container if running
+            # Stop and remove old container (if running)
             docker stop fastapi-app || true
             docker rm fastapi-app || true
 
-            # Remove unused Docker images to free up space
-            docker system prune -af || true
-
-            # Build and start the new container
-            docker-compose up -d --build
+            # Build and run the new container
+            docker build -t fastapi-app .
+            docker run -d -p 8000:8000 --name fastapi-app fastapi-app
 
             # Restart Nginx to apply any config changes
             sudo systemctl restart nginx
           EOF
-
-
-          # name: CD Pipeline
