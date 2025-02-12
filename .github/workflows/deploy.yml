@@ -1,4 +1,4 @@
-name: CD Pipeline
+name: Deploy FastAPI App
 
 on:
   push:
@@ -7,16 +7,45 @@ on:
 
 jobs:
   deploy:
+    name: deploy
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Build Docker Image
+      - name: Set up SSH Key
         run: |
-          docker build -t fastapi-app .
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Run Container
+      - name: Deploy to EC2
         run: |
-          docker run -d -p 8000:8000 fastapi-app
+          ssh ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
+            set -e  # Exit immediately on error
+            
+            # Define working directory
+            APP_DIR="/home/ubuntu"
+
+            # Clone repo if not exists, else pull latest changes
+            if [ ! -d "$APP_DIR/.git" ]; then
+              git clone https://github.com/heiswillz98/fastapi-book-project.git $APP_DIR
+            fi
+            cd $APP_DIR
+            git pull origin main
+
+            # Stop and remove old container if running
+            docker stop fastapi-app || true
+            docker rm fastapi-app || true
+
+            # Remove unused Docker images to free up space
+            docker system prune -af || true
+
+            # Build and start the new container
+            docker-compose up -d --build
+
+            # Restart Nginx to apply any config changes
+            sudo systemctl restart nginx
+          EOF
+
+
+          # name: CD Pipeline
