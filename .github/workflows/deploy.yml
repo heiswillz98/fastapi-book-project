@@ -28,7 +28,7 @@ jobs:
 
             # Clone repo if not exists, else pull latest changes
             if [ ! -d "$APP_DIR/.git" ]; then
-              git clone https://github.com/heiswillz/fastapi-book-project.git $APP_DIR
+              git clone https://github.com/heiswillz98/fastapi-book-project.git $APP_DIR
             fi
             cd $APP_DIR
             git pull origin main
